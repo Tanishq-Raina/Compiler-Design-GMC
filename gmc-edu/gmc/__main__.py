@@ -7,6 +7,7 @@ from pathlib import Path
 from gmc.ast import dump_ast
 from gmc.codegen import CodegenError, generate_file
 from gmc.cost import CostError, dump_priced, parse_sizes, price_source
+from gmc.execute import ExecuteError, run_source
 from gmc.features import FeatureError, dump_inference, infer_file
 from gmc.lexer import LexError, Lexer
 from gmc.lower import LowerError, dump_lowered, lower_file
@@ -18,7 +19,7 @@ from gmc.semantics import SemanticError, check_file, dump_symbols
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m gmc",
-        usage="python -m gmc {lex,parse,check,infer,variants,lower,cost,compile} <file>",
+        usage="python -m gmc {lex,parse,check,infer,variants,lower,cost,compile,run} <file>",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     lex_parser = commands.add_parser("lex", help="print tokens from a source file")
@@ -41,12 +42,51 @@ def _build_parser() -> argparse.ArgumentParser:
     compile_parser = commands.add_parser("compile", help="generate Python variants")
     compile_parser.add_argument("file", type=Path)
     compile_parser.add_argument("-o", "--output", type=Path)
+    run_parser = commands.add_parser("run", help="run a generated GMC variant")
+    run_parser.add_argument("file", type=Path)
+    run_parser.add_argument("--sizes", required=True)
+    run_parser.add_argument("--seed", type=int, default=0)
     return parser
 
 
 def main() -> int:
     parser = _build_parser()
     arguments = parser.parse_args()
+
+    if arguments.command == "run":
+        try:
+            source = arguments.file.read_text(encoding="utf-8")
+            program = parse_file(arguments.file)
+            sizes = parse_sizes(arguments.sizes, len(program.factors))
+            result = run_source(source, sizes, arguments.seed)
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except CostError as error:
+            print(f"cost error: {error}", file=sys.stderr)
+            return 1
+        except ExecuteError as error:
+            print(f"run error: {error}", file=sys.stderr)
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(f"picked {result.label}  flops={result.flops}")
+        print(f"shape={result.value.shape}")
+        print(f"residual={result.residual:.2e}")
+        if result.residual >= 1e-8:
+            print("run error: residual too large", file=sys.stderr)
+            return 1
+        return 0
 
     if arguments.command == "compile":
         output_path = arguments.output or Path(f"{arguments.file.stem}_gen.py")

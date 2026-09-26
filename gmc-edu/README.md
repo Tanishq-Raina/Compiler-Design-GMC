@@ -12,7 +12,7 @@ Run the tests with:
 python -m pytest -q
 ```
 
-Phase 1 implemented the lexer; later phases add syntax analysis, semantic checks, feature inference, variants, lowering, symbolic costs, and original code generation. Runtime kernels come later and will not be copied from HPAC/gmc_code_gen.
+The implementation is staged across phases, from lexing and syntax analysis through runtime validation; kernels and code generation are original educational work, not copied from HPAC/gmc_code_gen.
 
 ## Phase 2: syntax analysis
 
@@ -36,8 +36,34 @@ Phase 6 lowers each essential association to a sequence of BLAS-like kernel labe
 
 ## Phase 7: symbolic cost model
 
-Phase 7 prices lowered kernel steps with integer FLOP formulas over symbolic matrix dimensions and can select the cheapest essential variant for supplied sizes; code generation remains a later phase.
+Phase 7 prices lowered kernel steps with integer FLOP formulas over symbolic matrix dimensions and selects the cheapest essential variant for supplied sizes.
 
 ## Phase 8: Python code generation
 
-Phase 8 emits ordinary Python variant and cost functions plus a runtime dispatcher; kernel implementations remain Phase 9 stubs, and generated modules are not executed by the compiler.
+Phase 8 emits ordinary Python variant and cost functions plus a runtime dispatcher. Phase 9 provides NumPy-backed runtime kernels and loads generated modules to validate numerical results.
+
+## Phase 9: runtime execution
+
+Phase 9 supplies NumPy-backed matrix kernels, deterministic test matrix construction, a left-to-right numerical reference, and residual checks against the generated cost-dispatched variant.
+
+Run the full pipeline from the project root:
+
+```sh
+python -m gmc lex examples/simple.gmc
+python -m gmc parse examples/simple.gmc
+python -m gmc check examples/simple.gmc
+python -m gmc infer examples/simple.gmc
+python -m gmc variants examples/simple.gmc
+python -m gmc lower examples/simple.gmc
+python -m gmc cost examples/simple.gmc --sizes 10,8,8,5
+python -m gmc compile examples/simple.gmc -o simple_gen.py
+python -m gmc run examples/simple.gmc --sizes 10,8,8,5
+```
+
+### What this lab implemented
+
+An original educational generalized matrix-chain compiler inspired by López, Karlsson, and Bientinesi, “Compilation of Generalized Matrix Chains with Symbolic Sizes,” CGO 2026.
+Its phases cover lexing, parsing, semantic checks, feature inference, and parenthesization variants.
+It lowers essential variants, estimates symbolic costs, generates Python dispatch modules, and validates numerical results.
+The final runtime uses NumPy-backed kernels and compares the selected result with a direct reference product.
+The compiler structure and code are original educational work, not a copy of HPAC/gmc_code_gen.

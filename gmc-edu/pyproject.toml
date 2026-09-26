@@ -7,7 +7,7 @@ name = "gmc-edu"
 version = "0.1.0"
 description = "Educational generalized matrix chain compiler"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["numpy"]
 
 [project.optional-dependencies]
 test = ["pytest"]
