@@ -12,7 +12,7 @@ Run the tests with:
 python -m pytest -q
 ```
 
-Phase 1 implemented the lexer; Phase 2 adds syntax analysis. Matrix-feature analysis, kernels, and code generation come later and will be original work, not copied from HPAC/gmc_code_gen.
+Phase 1 implemented the lexer; later phases add syntax analysis, semantic checks, feature inference, variants, lowering, symbolic costs, and original code generation. Runtime kernels come later and will not be copied from HPAC/gmc_code_gen.
 
 ## Phase 2: syntax analysis
 
@@ -37,3 +37,7 @@ Phase 6 lowers each essential association to a sequence of BLAS-like kernel labe
 ## Phase 7: symbolic cost model
 
 Phase 7 prices lowered kernel steps with integer FLOP formulas over symbolic matrix dimensions and can select the cheapest essential variant for supplied sizes; code generation remains a later phase.
+
+## Phase 8: Python code generation
+
+Phase 8 emits ordinary Python variant and cost functions plus a runtime dispatcher; kernel implementations remain Phase 9 stubs, and generated modules are not executed by the compiler.

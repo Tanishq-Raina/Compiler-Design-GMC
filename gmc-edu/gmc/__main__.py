@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from gmc.ast import dump_ast
+from gmc.codegen import CodegenError, generate_file
 from gmc.cost import CostError, dump_priced, parse_sizes, price_source
 from gmc.features import FeatureError, dump_inference, infer_file
 from gmc.lexer import LexError, Lexer
@@ -17,7 +18,7 @@ from gmc.semantics import SemanticError, check_file, dump_symbols
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m gmc",
-        usage="python -m gmc {lex,parse,check,infer,variants,lower,cost} <file>",
+        usage="python -m gmc {lex,parse,check,infer,variants,lower,cost,compile} <file>",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     lex_parser = commands.add_parser("lex", help="print tokens from a source file")
@@ -37,12 +38,40 @@ def _build_parser() -> argparse.ArgumentParser:
     cost_parser = commands.add_parser("cost", help="price essential variants")
     cost_parser.add_argument("file", type=Path)
     cost_parser.add_argument("--sizes")
+    compile_parser = commands.add_parser("compile", help="generate Python variants")
+    compile_parser.add_argument("file", type=Path)
+    compile_parser.add_argument("-o", "--output", type=Path)
     return parser
 
 
 def main() -> int:
     parser = _build_parser()
     arguments = parser.parse_args()
+
+    if arguments.command == "compile":
+        output_path = arguments.output or Path(f"{arguments.file.stem}_gen.py")
+        try:
+            generate_file(str(arguments.file), str(output_path))
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except (LowerError, CostError, CodegenError) as error:
+            print(f"compile error: {error}", file=sys.stderr)
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(f"wrote {output_path.name}")
+        return 0
 
     if arguments.command == "cost":
         try:
