@@ -33,3 +33,7 @@ Phase 5 generates all full parenthesizations plus the fanning-out and size-equiv
 ## Phase 6: kernel lowering
 
 Phase 6 lowers each essential association to a sequence of BLAS-like kernel labels with symbolic intermediate states; it does not calculate costs or emit runnable code.
+
+## Phase 7: symbolic cost model
+
+Phase 7 prices lowered kernel steps with integer FLOP formulas over symbolic matrix dimensions and can select the cheapest essential variant for supplied sizes; code generation remains a later phase.

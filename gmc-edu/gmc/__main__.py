@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from gmc.ast import dump_ast
+from gmc.cost import CostError, dump_priced, parse_sizes, price_source
 from gmc.features import FeatureError, dump_inference, infer_file
 from gmc.lexer import LexError, Lexer
 from gmc.lower import LowerError, dump_lowered, lower_file
@@ -16,7 +17,7 @@ from gmc.semantics import SemanticError, check_file, dump_symbols
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m gmc",
-        usage="python -m gmc {lex,parse,check,infer,variants,lower} <file>",
+        usage="python -m gmc {lex,parse,check,infer,variants,lower,cost} <file>",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     lex_parser = commands.add_parser("lex", help="print tokens from a source file")
@@ -33,12 +34,47 @@ def _build_parser() -> argparse.ArgumentParser:
     variants_parser.add_argument("file", type=Path)
     lower_parser = commands.add_parser("lower", help="lower essential variants")
     lower_parser.add_argument("file", type=Path)
+    cost_parser = commands.add_parser("cost", help="price essential variants")
+    cost_parser.add_argument("file", type=Path)
+    cost_parser.add_argument("--sizes")
     return parser
 
 
 def main() -> int:
     parser = _build_parser()
     arguments = parser.parse_args()
+
+    if arguments.command == "cost":
+        try:
+            source = arguments.file.read_text(encoding="utf-8")
+            priced = price_source(source)
+            sizes = None
+            if arguments.sizes is not None:
+                factor_count = len(priced[0].lowered.steps) + 1
+                sizes = parse_sizes(arguments.sizes, factor_count)
+            print(dump_priced(priced, sizes))
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except LowerError as error:
+            print(f"lower error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except CostError as error:
+            print(f"cost error: {error}", file=sys.stderr)
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        return 0
 
     if arguments.command == "lower":
         try:
