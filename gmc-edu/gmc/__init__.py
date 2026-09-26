@@ -1,0 +1,1 @@
+"""Educational generalized matrix chain compiler."""

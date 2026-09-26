@@ -1,0 +1,8 @@
+Matrix A <Dense, None>;
+Matrix B <Dense, None>;
+Matrix C <Dense, None>;
+Matrix D <Dense, None>;
+A * B * C * D
+
+# n=4, no inverses, 5 size symbols all singleton classes
+# |all| = 5, |fanout| = 5, |essential| = 5

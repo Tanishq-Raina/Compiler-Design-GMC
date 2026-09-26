@@ -1,0 +1,9 @@
+# Matrix-chain example with comments and blank lines
+
+Matrix A <Dense, None>; # first matrix
+Matrix L <Lower, FullRank>;
+
+Matrix B <Dense, None>;
+
+# Product expression
+A * inv(L) * trans(B)

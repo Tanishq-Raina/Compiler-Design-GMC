@@ -1,0 +1,3 @@
+Matrix A <Dense, FullRank>;
+Matrix L <Lower, FullRank>;
+inv(trans(A)) * L * trans(inv(A))

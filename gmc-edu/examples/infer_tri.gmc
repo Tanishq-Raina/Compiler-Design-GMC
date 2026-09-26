@@ -1,0 +1,5 @@
+Matrix U <Upper, FullRank>;
+Matrix L <Lower, FullRank>;
+U * U * L
+
+# ltr: (U*U)=U then U*L=G

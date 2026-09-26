@@ -1,0 +1,163 @@
+"""Command-line entry point for the GMC educational compiler."""
+
+import argparse
+import sys
+from pathlib import Path
+
+from gmc.ast import dump_ast
+from gmc.features import FeatureError, dump_inference, infer_file
+from gmc.lexer import LexError, Lexer
+from gmc.lower import LowerError, dump_lowered, lower_file
+from gmc.parenthesize import dump_plan, plan_variants
+from gmc.parser import ParseError, parse_file
+from gmc.semantics import SemanticError, check_file, dump_symbols
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="python -m gmc",
+        usage="python -m gmc {lex,parse,check,infer,variants,lower} <file>",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    lex_parser = commands.add_parser("lex", help="print tokens from a source file")
+    lex_parser.add_argument("file", type=Path)
+    parse_parser = commands.add_parser("parse", help="print the parsed AST")
+    parse_parser.add_argument("file", type=Path)
+    check_parser = commands.add_parser("check", help="check declarations and uses")
+    check_parser.add_argument("file", type=Path)
+    infer_parser = commands.add_parser("infer", help="infer matrix features")
+    infer_parser.add_argument("file", type=Path)
+    variants_parser = commands.add_parser(
+        "variants", help="list parenthesization variants"
+    )
+    variants_parser.add_argument("file", type=Path)
+    lower_parser = commands.add_parser("lower", help="lower essential variants")
+    lower_parser.add_argument("file", type=Path)
+    return parser
+
+
+def main() -> int:
+    parser = _build_parser()
+    arguments = parser.parse_args()
+
+    if arguments.command == "lower":
+        try:
+            lowered = lower_file(arguments.file)
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except LowerError as error:
+            print(f"lower error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(dump_lowered(lowered))
+        return 0
+
+    if arguments.command == "variants":
+        try:
+            checked = check_file(arguments.file)
+            plan = plan_variants(checked.program)
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(dump_plan(plan, checked.program))
+        return 0
+
+    if arguments.command == "infer":
+        try:
+            inference = infer_file(arguments.file)
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except FeatureError as error:
+            print(f"feature error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(dump_inference(inference))
+        return 0
+
+    if arguments.command == "check":
+        try:
+            checked = check_file(arguments.file)
+        except LexError as error:
+            print(f"lex error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except ParseError as error:
+            print(f"parse error at {error.line}:{error.column}: {error}", file=sys.stderr)
+            return 1
+        except SemanticError as error:
+            print(
+                f"semantic error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(dump_symbols(checked))
+        print("OK")
+        return 0
+
+    if arguments.command == "parse":
+        try:
+            program = parse_file(arguments.file)
+        except (ParseError, LexError) as error:
+            print(
+                f"parse error at {error.line}:{error.column}: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        except OSError as error:
+            print(error, file=sys.stderr)
+            return 1
+        print(dump_ast(program))
+        return 0
+
+    try:
+        source = arguments.file.read_text(encoding="utf-8")
+        tokens = Lexer(source).tokenize()
+    except (OSError, LexError) as error:
+        print(error, file=sys.stderr)
+        return 1
+
+    for token in tokens:
+        print(f"{token.type.name:<14} {token.lexeme!r:<12} {token.line}:{token.column}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,5 @@
+Matrix Q <Dense, Orthogonal>;
+Matrix P <Symmetric, SPD>;
+Q * Q * P
+
+# ltr: (Q*Q)=ORTH then ORTH*SPD=INV, structure G

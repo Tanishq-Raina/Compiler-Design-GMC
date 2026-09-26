@@ -1,0 +1,3 @@
+Matrix A <Dense, None>;
+Matrix B <Dense, None>;
+inv(A) * B
